@@ -19,6 +19,28 @@
 
 #include "fmt/core.h"
 
+enum class SpringStatus {
+    OPERATIONAL,
+    DAMAGED,
+    UNKNOWN
+};
+
+const std::unordered_map<char, SpringStatus> spring_status_map{
+        {'.', SpringStatus::OPERATIONAL},
+        {'#', SpringStatus::DAMAGED},
+        {'?', SpringStatus::UNKNOWN}
+};
+
+struct RecordRow {
+    std::vector<SpringStatus> records{};
+    std::vector<int> damaged_groups{};
+
+    uint64_t get_possible_arrangements();
+
+private:
+    std::vector<size_t> get_possibilities_for_group(size_t start_from, size_t group_index);
+};
+
 int puzzle_sample_1(const std::string &base_file_path);
 
 int puzzle_sample_2(const std::string &base_file_path);

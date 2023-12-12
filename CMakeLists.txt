@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(aoc-template)
+project(aoc-2023-12)
 
 set(CMAKE_CXX_STANDARD 23)
 
