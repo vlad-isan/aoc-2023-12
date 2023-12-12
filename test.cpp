@@ -24,7 +24,7 @@ TEST(AOC, PUZZLE_SAMPLE_1) {
 
 TEST(AOC, PUZZLE_SAMPLE_2) {
     fmt::println("{}", base_file_path);
-    EXPECT_EQ(puzzle_sample_2(get_base_file_path()), 0);
+    EXPECT_EQ(puzzle_sample_2(get_base_file_path()), 525152);
 }
 
 TEST(AOC, PUZZLE_1) {
@@ -33,6 +33,6 @@ TEST(AOC, PUZZLE_1) {
 }
 
 TEST(AOC, PUZZLE_2) {
-    EXPECT_EQ(puzzle_2(get_base_file_path()), 0);
+    EXPECT_EQ(puzzle_2(get_base_file_path()), 157383940585037);
 }
 

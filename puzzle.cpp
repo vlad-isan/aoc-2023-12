@@ -4,7 +4,7 @@
 
 #include "puzzle.h"
 
-int puzzle_sample_1(const std::string &base_file_path) {
+uint64_t puzzle_sample_1(const std::string &base_file_path) {
     std::string file_path = fmt::format("{}/{}", base_file_path, "puzzle-input-sample-1.txt");
 
     std::ifstream file(file_path);
@@ -20,7 +20,7 @@ int puzzle_sample_1(const std::string &base_file_path) {
     return do_puzzle_1(file);
 }
 
-int puzzle_sample_2(const std::string &base_file_path) {
+uint64_t puzzle_sample_2(const std::string &base_file_path) {
     std::string file_path = fmt::format("{}/{}", base_file_path, "puzzle-input-sample-2.txt");
 
     std::ifstream file(file_path);
@@ -36,7 +36,7 @@ int puzzle_sample_2(const std::string &base_file_path) {
     return do_puzzle_2(file);
 }
 
-int puzzle_1(const std::string &base_file_path) {
+uint64_t puzzle_1(const std::string &base_file_path) {
     std::string file_path = fmt::format("{}/{}", base_file_path, "puzzle-input-1.txt");
 
     std::ifstream file(file_path);
@@ -52,7 +52,7 @@ int puzzle_1(const std::string &base_file_path) {
     return do_puzzle_1(file);
 }
 
-int puzzle_2(const std::string &base_file_path) {
+uint64_t puzzle_2(const std::string &base_file_path) {
     std::string file_path = fmt::format("{}/{}", base_file_path, "puzzle-input-2.txt");
 
     std::ifstream file(file_path);
@@ -68,9 +68,10 @@ int puzzle_2(const std::string &base_file_path) {
     return do_puzzle_2(file);
 }
 
-int do_puzzle_1(std::ifstream &file) {
+uint64_t do_puzzle_1(std::ifstream &file) {
     std::string line;
     std::vector<RecordRow> records{};
+    uint64_t sum = 0;
 
     while (std::getline(file, line)) {
         RecordRow record_row{};
@@ -93,96 +94,150 @@ int do_puzzle_1(std::ifstream &file) {
             record_row.damaged_groups.push_back(std::stoi(group));
         }
 
+        sum += record_row.get_count_memoization(0, 0);
         records.push_back(record_row);
-    }
-
-    uint64_t sum = 0;
-
-    for (auto &record: records) {
-        sum += record.get_possible_arrangements();
     }
 
     return sum;
 }
 
-int do_puzzle_2(std::ifstream &file) {
+uint64_t do_puzzle_2(std::ifstream &file) {
     std::string line;
+    std::vector<RecordRow> records{};
+    uint64_t sum = 0;
+    uint64_t line_count = 0;
 
     while (std::getline(file, line)) {
-        fmt::println("{}", line);
+        RecordRow record_row{};
+
+        std::istringstream iss(line);
+        std::string conditions;
+
+        std::getline(iss, conditions, ' ');
+
+        for (auto &condition: conditions) {
+            record_row.records.push_back(spring_status_map.at(condition));
+        }
+
+        std::string groups;
+        std::string group;
+        std::getline(iss, groups, ' ');
+        std::istringstream iss_groups(groups);
+
+        while (std::getline(iss_groups, group, ',')) {
+            record_row.damaged_groups.push_back(std::stoi(group));
+        }
+
+        record_row.unfold();
+
+        sum += record_row.get_count_memoization(0, 0);
+
+        records.push_back(record_row);
     }
 
-    return 0;
+    return sum;
 }
 
-uint64_t RecordRow::get_possible_arrangements() {
-    std::vector<std::vector<size_t>> group_possibilities{};
+void RecordRow::unfold() {
+    std::vector<SpringStatus> temp_records;
+    std::vector<int> temp_damaged_groups;
 
-    for (size_t i = 0; i < this->damaged_groups.size(); i++) {
-        if (i > 0) {
-            std::vector<size_t> temp_possibilities{};
+    for (size_t i = 0; i < 5; ++i) {
+        if (i != 0) {
+            temp_records.emplace_back(SpringStatus::UNKNOWN);
+        }
 
-            for (auto &start: group_possibilities[i - 1]) {
-                auto end = start + this->damaged_groups[i - 1] + 1;
-                auto possibilities = get_possibilities_for_group(end, i);
+        std::copy(this->records.begin(), this->records.end(), std::back_inserter(temp_records));
+        std::copy(this->damaged_groups.begin(), this->damaged_groups.end(), std::back_inserter(temp_damaged_groups));
+    }
 
-                temp_possibilities.insert_range(temp_possibilities.end(), possibilities);
-            }
+    this->records = temp_records;
+    this->damaged_groups = temp_damaged_groups;
+}
 
-            group_possibilities.emplace_back(temp_possibilities);
+uint64_t RecordRow::get_count(size_t record_index, size_t group_index) {
+    if (record_index >= this->records.size()) {
+        if (group_index == this->damaged_groups.size()) {
+            return 1;
         } else {
-            auto possibilities = get_possibilities_for_group(0, i);
-            group_possibilities.emplace_back(possibilities);
+            return 0;
         }
     }
 
-    auto super_valid = std::count_if(group_possibilities.back().begin(), group_possibilities.back().end(), [&](auto &x) {
-        bool valid = true;
-
-        for (size_t i = x + this->damaged_groups.back(); i < this->records.size(); i++) {
-            if (this->records[i] == SpringStatus::DAMAGED) {
-                valid = false;
-                break;
-            }
+    if (group_index == this->damaged_groups.size()) {
+        if (std::ranges::count_if(this->records.begin() + record_index, this->records.end(),
+                                  [](auto &x) { return x == SpringStatus::DAMAGED; }) == 0) {
+            return 1;
+        } else {
+            return 0;
         }
+    }
 
-        return valid;
-    });
+    uint64_t result = 0;
 
-    return super_valid;
+    if (this->records[record_index] == SpringStatus::OPERATIONAL || this->records[record_index] == SpringStatus::UNKNOWN) {
+        result += get_count(record_index + 1, group_index);
+    }
+
+    if (this->records[record_index] == SpringStatus::DAMAGED || this->records[record_index] == SpringStatus::UNKNOWN) {
+        if (this->damaged_groups[group_index] + record_index <= this->records.size()
+    && std::ranges::count_if(this->records.begin() + record_index, this->records.begin() + record_index + this->damaged_groups[group_index],
+                                     [](auto &x) { return x == SpringStatus::OPERATIONAL; }) == 0
+                                     && (this->damaged_groups[group_index] + record_index == this->records.size()
+                                         || this->records[this->damaged_groups[group_index] + record_index] != SpringStatus::DAMAGED)
+        ) {
+            result += get_count(record_index + this->damaged_groups[group_index] + 1, group_index + 1);
+        }
+    }
+
+    return result;
 }
 
-std::vector<size_t> RecordRow::get_possibilities_for_group(size_t start_from, size_t group_index) {
-    std::vector<size_t> possibilities{};
+std::map<std::pair<std::vector<SpringStatus>, std::vector<int>>, uint64_t> memoization_map{};
 
-    for (size_t i = start_from; i < this->records.size(); i++) {
-        if (this->records[i] != SpringStatus::OPERATIONAL) {
-            bool all_valid = true;
+uint64_t RecordRow::get_count_memoization(size_t record_index, size_t group_index) {
 
-            for (size_t j = i; j < this->damaged_groups[group_index] + i; ++j) {
-                if (this->records[j] == SpringStatus::OPERATIONAL) {
-                    all_valid = false;
-                    break;
-                }
-            }
-
-            size_t end_index = i + this->damaged_groups[group_index];
-
-            if (all_valid && (end_index <= this->records.size())) {
-                if (end_index < this->records.size() && this->records[end_index] == SpringStatus::DAMAGED) {
-                    all_valid = false;
-                }
-
-                if (all_valid) {
-                    possibilities.emplace_back(i);
-                }
-            }
-
-            if (this->records[i] == SpringStatus::DAMAGED) {
-                break;
-            }
+    if (record_index >= this->records.size()) {
+        if (group_index == this->damaged_groups.size()) {
+            return 1;
+        } else {
+            return 0;
         }
     }
 
-    return possibilities;
+    if (group_index == this->damaged_groups.size()) {
+        if (std::ranges::count_if(this->records.begin() + record_index, this->records.end(),
+                                  [](auto &x) { return x == SpringStatus::DAMAGED; }) == 0) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    std::pair<std::vector<SpringStatus>, std::vector<int>> key{{this->records.begin() + record_index, this->records.end()}, {this->damaged_groups.begin() + group_index, this->damaged_groups.end()}};
+
+    if (memoization_map.contains(key)) {
+        return memoization_map[key];
+    }
+
+    uint64_t result = 0;
+
+    if (this->records[record_index] == SpringStatus::OPERATIONAL || this->records[record_index] == SpringStatus::UNKNOWN) {
+        result += get_count_memoization(record_index + 1, group_index);
+    }
+
+    if (this->records[record_index] == SpringStatus::DAMAGED || this->records[record_index] == SpringStatus::UNKNOWN) {
+        if (this->damaged_groups[group_index] + record_index <= this->records.size()
+            && std::ranges::count_if(this->records.begin() + record_index, this->records.begin() + record_index + this->damaged_groups[group_index],
+                                     [](auto &x) { return x == SpringStatus::OPERATIONAL; }) == 0
+            && (this->damaged_groups[group_index] + record_index == this->records.size()
+                || this->records[this->damaged_groups[group_index] + record_index] != SpringStatus::DAMAGED)
+                ) {
+            result += this->get_count_memoization(record_index + this->damaged_groups[group_index] + 1, group_index + 1);
+        }
+    }
+
+    memoization_map[key] = result;
+
+    return result;
 }

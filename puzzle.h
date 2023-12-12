@@ -16,6 +16,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+#include <thread>
 
 #include "fmt/core.h"
 
@@ -31,26 +32,27 @@ const std::unordered_map<char, SpringStatus> spring_status_map{
         {'?', SpringStatus::UNKNOWN}
 };
 
+extern std::map<std::pair<std::vector<SpringStatus>, std::vector<int>>, uint64_t> memoization_map;
+
 struct RecordRow {
     std::vector<SpringStatus> records{};
     std::vector<int> damaged_groups{};
 
-    uint64_t get_possible_arrangements();
-
-private:
-    std::vector<size_t> get_possibilities_for_group(size_t start_from, size_t group_index);
+    uint64_t get_count(size_t record_index, size_t group_index);
+    uint64_t get_count_memoization(size_t record_index, size_t group_index);
+    void unfold();
 };
 
-int puzzle_sample_1(const std::string &base_file_path);
+uint64_t puzzle_sample_1(const std::string &base_file_path);
 
-int puzzle_sample_2(const std::string &base_file_path);
+uint64_t puzzle_sample_2(const std::string &base_file_path);
 
-int puzzle_1(const std::string &base_file_path);
+uint64_t puzzle_1(const std::string &base_file_path);
 
-int puzzle_2(const std::string &base_file_path);
+uint64_t puzzle_2(const std::string &base_file_path);
 
-int do_puzzle_1(std::ifstream &file);
+uint64_t do_puzzle_1(std::ifstream &file);
 
-int do_puzzle_2(std::ifstream &file);
+uint64_t do_puzzle_2(std::ifstream &file);
 
 #endif //PUZZLE_H
